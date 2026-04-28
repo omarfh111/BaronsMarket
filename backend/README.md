@@ -1,41 +1,45 @@
-# Backend - FastAPI Inference Service
+# Backend - FastAPI AI Gateway
 
-## What this service does
+This backend serves both:
+- mobile client APIs
+- employee web APIs and static web app at `/employee`
 
-1. Detect product area with YOLOv8 (`best.pt`)
-2. Build CLIP image embedding from crop (or full image fallback)
-3. Retrieve top matching products with FAISS
-4. Return normalized product payload used by mobile app
+## Modules
 
-## Python dependencies
+1. Product retrieval (Model 1)
+- `/detect`
+- YOLO + CLIP + FAISS
 
-Install exactly from `requirements.txt`:
+2. Meat freshness (Model 2)
+- `/meat-freshness`
 
+3. Animal & Bag (Model 3)
+- `/model3/predict-image`
+- `/model3/analyze-video`
+
+4. Theft surveillance (Model 4)
+- `/theft/analyze-video`
+- `/theft/analyze-youtube`
+
+5. Queue recommendation (Model 5)
+- `/queue-recommendation/submit-video` (async job)
+- `/queue-recommendation/job-latest`
+- `/queue-recommendation/latest`
+- `/queue-recommendation/analyze-video` (sync/debug)
+
+## Requirements
+
+Install from `requirements.txt`:
 - fastapi, uvicorn, python-multipart
 - pydantic-settings
-- numpy, Pillow, opencv-python
+- numpy, pillow, opencv-python
 - faiss-cpu
-- torch, transformers, ultralytics
+- torch, torchvision, timm
+- transformers
+- ultralytics
+- lap
 
-## System requirements
-
-- Python `3.10+` recommended
-- Model assets available under `../model/model_1/`
-- Enough RAM for model/index loading
-
-## Environment variables
-
-Copy `.env.example` to `.env` and adjust if needed:
-
-- `MODEL_DIR`
-- `YOLO_MODEL_PATH`
-- `FAISS_INDEX_PATH`
-- `PRODUCT_EMBEDDINGS_PATH`
-- `PRODUCTS_JSON_PATH`
-- `YOLO_CONFIDENCE`
-- `TOP_K`
-
-## Setup
+## Environment Setup
 
 ```powershell
 cd backend
@@ -45,52 +49,43 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
+## Important ENV variables
+
+`.env` includes:
+- model1 paths (`YOLO_MODEL_PATH`, `FAISS_INDEX_PATH`, ...)
+- model3 path (`MODEL3_WEIGHTS_PATH`)
+- model4 paths (`MODEL4_PERSON_WEIGHTS_PATH`, `MODEL4_THEFT_WEIGHTS_PATH`)
+- model5 paths (`MODEL5_WEIGHTS_PATH`, `MODEL5_QUEUE_ZONES_PATH`, `MODEL5_OUTPUT_DIR`)
+
 ## Run
 
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Health:
+Health check:
 
 ```powershell
 curl http://127.0.0.1:8000/health
 ```
 
-## API
+Employee web:
 
-### `GET /health`
-
-Returns:
-
-```json
-{ "status": "ok" }
+```text
+http://127.0.0.1:8000/employee/
 ```
 
-### `POST /detect`
+## Queue Recommendation Runtime Notes
 
-- Content type: `multipart/form-data`
-- File field: `image`
-- Optional query param: `top_k` (`1..10`)
+- Uses notebook-aligned config from:
+  - `ml/models/model_5/queue_config.json` (priority)
+  - `model/model_5/queue_zones.json` (fallback)
+- Queue assignment uses foot-point + overlap logic.
+- Async job updates latest recommendation during processing.
 
-Response:
+## YouTube Endpoints
 
-```json
-{
-  "predictions": [
-    {
-      "name": "Spaghetti bucatini",
-      "brand": "SPIGA",
-      "price": 0.41,
-      "image": "https://...",
-      "confidence": 0.82,
-      "detector_confidence": 0.93
-    }
-  ]
-}
-```
-
-## Notes
-
-- Mobile uploads with `application/octet-stream` are accepted and validated as real images.
-- Price parsing supports formats like `"0,410 DT"` and normalizes to float.
+YouTube depends on runtime environment.
+If direct stream fails, install and configure:
+- `ffmpeg`
+- `yt-dlp`

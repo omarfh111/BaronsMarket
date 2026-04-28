@@ -1,41 +1,69 @@
-# Market AI - Mobile Shopping Assistant
+# BaronsMarket AI Platform
 
-Full-stack prototype for in-store product scanning and assisted checkout.
+Unified project for supermarket AI use cases:
+- Mobile shopping assistant (product scan, cart, QR checkout)
+- Employee web platform (Animal/Bag, Theft surveillance, Queue recommendation)
 
-## Project Structure
+## Repository Structure
 
-- `backend/`: FastAPI inference API (YOLOv8 + CLIP + FAISS)
-- `frontend/`: Flutter mobile app (scan -> predict -> cart -> QR checkout)
-- `model/model_1/`: trained assets (`best.pt`, FAISS index, embeddings, products JSON)
+- `backend/`: FastAPI API server (all AI endpoints + employee web static hosting)
+- `frontend/`: Flutter Android app for client experience
+- `apps/web-employee/public/`: employee web UI
+- `model/model_1/`: product detection/retrieval assets
+- `model/model_2/`: meat freshness model weights
+- `model/model_5/`: queue zones JSON used by backend
+- `ml/models/model_3/`: animal/bag model weights
+- `ml/models/model_4/`: theft pipeline models
+- `ml/models/model_5/`: queue recommendation notebook-aligned config and YOLO weights
 
-## Architecture
+## Features Implemented
 
-1. Mobile app captures image.
-2. Backend detects product region with YOLOv8.
-3. Crop is embedded with CLIP (512D).
-4. Retrieval is performed with FAISS.
-5. Backend returns top predictions (`name`, `brand`, `price`, `image`, confidence).
-6. User confirms prediction -> product added to local cart.
-7. Checkout screen displays total and QR bill payload.
+1. Product scan (mobile)
+- YOLOv8 detection + CLIP embedding + FAISS retrieval
+- Top predictions with confirm/reject
+- Cart and QR checkout
 
-## Prerequisites
+2. Animal & Bag (employee web)
+- Image and video analysis
+- Bounding boxes, events, thresholds
 
-### Backend
+3. Theft surveillance (employee web)
+- Person detection + tracking + theft status decision
+- Auto capture when `SUSPECT` or `THEFT`
+- Upload video + YouTube mode (environment dependent)
 
-- Python `3.10+` (recommended `3.11`)
-- Pip and virtualenv
-- Model files present in `model/model_1/`
+4. Queue recommendation (employee web + mobile)
+- Track people in queue zones
+- Count per queue and choose best queue
+- Async background jobs + live status polling
+- Mobile checkout can read latest recommended queue
 
-### Frontend (Android)
+## System Requirements
 
-- Flutter SDK (tested with `3.41.x`)
+### Windows tools
+
+- Python 3.10+ (3.11 recommended)
+- Git + Git LFS
+- Flutter SDK (tested 3.41.x)
 - Android Studio
-- Android SDK + build-tools + platform-tools + command-line tools
-- Accepted Android licenses (`flutter doctor --android-licenses`)
+- Android SDK (platform-tools, build-tools, command-line tools)
 
-## Install and Run
+### Optional for YouTube direct analysis
 
-### 1) Backend setup
+- `ffmpeg`
+- `yt-dlp`
+
+## Step-by-Step Setup
+
+### 1) Clone and prepare
+
+```powershell
+git clone -b integration https://github.com/omarfh111/BaronsMarket.git
+cd BaronsMarket
+git lfs pull
+```
+
+### 2) Backend install
 
 ```powershell
 cd backend
@@ -43,53 +71,76 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
+```
+
+### 3) Start backend
+
+```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Health check:
+### 4) Web employee test
+
+Open:
+- `http://127.0.0.1:8000/employee/`
+
+Test tabs:
+- Animal & Bag
+- Surveillance Vol
+- Recommandation Caisse
+
+### 5) Flutter setup
 
 ```powershell
-curl http://127.0.0.1:8000/health
-```
-
-### 2) Frontend setup
-
-```powershell
-cd frontend
+cd ..\frontend
 flutter pub get
+flutter doctor
+flutter doctor --android-licenses
 ```
 
-Run on emulator:
+If flutter is not in PATH:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+$env:Path += ";C:\src\flutter\bin"
+flutter --version
 ```
 
-Run on physical phone (same Wi-Fi as backend machine):
-
-```powershell
-flutter run --dart-define=API_BASE_URL=http://<PC_LOCAL_IP>:8000
-```
-
-Build APK:
+### 6) Build APK for real phone
 
 ```powershell
 flutter build apk --release --dart-define=API_BASE_URL=http://<PC_LOCAL_IP>:8000
 ```
 
-APK output:
-
+APK path:
 - `frontend/build/app/outputs/flutter-apk/app-release.apk`
 
-## Notes
+### 7) Install and test on phone
 
-- Android manifest already enables HTTP cleartext for local testing.
-- The product metadata filename currently contains a space: `products_clean .json`.
-- Some first-time builds are slow because Gradle downloads SDK components.
+- Phone and PC on same Wi-Fi
+- Backend must remain running
+- Verify backend access from phone browser:
+  - `http://<PC_LOCAL_IP>:8000/health`
+
+## Execution Flow (Recommended)
+
+1. Employee uploads surveillance/queue video in web panel.
+2. Backend computes latest queue recommendation in background.
+3. Customer uses mobile app, scans products, confirms cart.
+4. At checkout screen, app displays total + QR + latest recommended queue.
+
+## Environment Notes
+
+- `backend/.env.example` contains model path variables for model1/model3/model4/model5.
+- Queue zones can be edited in:
+  - `model/model_5/queue_zones.json`
+- Notebook-aligned queue config (zones/colors/smoothing):
+  - `ml/models/model_5/queue_config.json`
 
 ## Troubleshooting
 
-- `flutter not recognized`: add `C:\src\flutter\bin` to `PATH`.
-- Android toolchain missing: run `flutter doctor`, install SDK components in Android Studio.
-- Build download timeout: rerun `flutter build apk ...` (Gradle retries often succeed).
-- API returns `Only image uploads are supported`: ensure frontend build includes latest API upload fix.
+- Build fails on large files in GitHub:
+  - ensure Git LFS is installed and tracked files are configured.
+- Queue stays `N/A`:
+  - check queue zone coordinates match the video perspective.
+- YouTube endpoint fails:
+  - install `ffmpeg` + `yt-dlp`, verify network and video accessibility.
