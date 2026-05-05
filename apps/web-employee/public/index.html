@@ -1,0 +1,291 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monoprix - Employee AI</title>
+  <link rel="stylesheet" href="./style.css?v=20260504-monoprix-redesign-8" />
+</head>
+<body class="booting">
+  <div id="appLoader" class="app-loader">
+    <div class="loader-mark">
+      <img src="./assets/monoprix_logo.png" alt="Monoprix" />
+      <div class="loader-ring"></div>
+    </div>
+    <div>
+      <p class="loader-kicker">Security AI Workspace</p>
+      <p class="loader-text">Initialisation des modules retail...</p>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <img class="brand-logo" src="./assets/monoprix_logo.png" alt="Monoprix" />
+        <div>
+          <p class="brand-eyebrow">Employee Platform</p>
+          <h1>Security AI</h1>
+        </div>
+      </div>
+
+      <nav class="center-tabs" aria-label="Navigation Employee AI">
+        <button id="tabAnalytics" class="tab-btn active" type="button"><span>01</span>Store Analytics</button>
+        <button id="tabAnimal" class="tab-btn" type="button"><span>02</span>Animal & Bag</button>
+        <button id="tabTheft" class="tab-btn" type="button"><span>03</span>Surveillance Vol</button>
+        <button id="tabQueue" class="tab-btn" type="button"><span>04</span>Recommandation Caisse</button>
+        <button id="tabDocs" class="tab-btn" type="button"><span>05</span>Forgery Docs</button>
+        <button id="tabAccess" class="tab-btn" type="button"><span>06</span>Employee Access</button>
+      </nav>
+
+      <div class="sidebar-status">
+        <div class="pulse-dot"></div>
+        <div>
+          <strong>System Online</strong>
+          <small>FastAPI - AI Models - Retail BI</small>
+        </div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="kicker">Monoprix Operations Center</p>
+          <h2>Employee AI Command</h2>
+        </div>
+        <div class="status-chip">Mode: Employee</div>
+      </header>
+
+      <main class="layout">
+        <section id="viewAnalytics" class="view active">
+          <div class="panel controls">
+            <p class="panel-kicker">Retail BI</p>
+            <h2>Analyse Magasin</h2>
+            <form id="analyticsForm" class="form">
+              <label>Periode (jours)</label>
+              <input id="analyticsDays" type="number" min="1" max="365" step="1" value="30" />
+              <label>Top produits</label>
+              <input id="analyticsTopK" type="number" min="3" max="20" step="1" value="8" />
+              <button type="submit">Actualiser maintenant</button>
+            </form>
+            <p class="small-muted">Analyse automatique active: chargement initial + refresh toutes les 20 secondes.</p>
+          </div>
+          <div class="panel results">
+            <p class="panel-kicker">Store Intelligence</p>
+            <h2>Dashboard Store</h2>
+            <div id="analyticsKpis" class="result-card hidden"></div>
+            <div id="analyticsCandles" class="result-card hidden"></div>
+            <div id="analyticsTopProducts" class="result-card hidden"></div>
+            <div id="analyticsAgents" class="result-card hidden"></div>
+          </div>
+        </section>
+
+        <section id="viewAnimal" class="view">
+          <div class="panel controls">
+            <p class="panel-kicker">Computer Vision</p>
+            <h2>Sources d'analyse</h2>
+            <div class="button-grid">
+              <button id="btnImage" class="feature-btn primary" type="button">Upload Photo</button>
+              <button id="btnVideo" class="feature-btn" type="button">Upload Video</button>
+              <button id="btnYoutube" class="feature-btn" type="button">YouTube URL</button>
+              <button class="feature-btn disabled" disabled type="button">Live Camera</button>
+            </div>
+
+            <form id="imageForm" class="form hidden">
+              <label>Image</label>
+              <input id="imageInput" type="file" accept="image/*" required />
+              <label>Min confidence</label>
+              <input id="imgMinConfidence" type="number" min="0" max="1" step="0.05" value="0.6" />
+              <button type="submit">Analyser l'image</button>
+            </form>
+
+            <form id="videoForm" class="form hidden">
+              <label>Video</label>
+              <input id="videoInput" type="file" accept="video/*" required />
+              <label>Sampling (sec)</label>
+              <input id="sampleSec" type="number" min="0.2" max="10" step="0.1" value="1.0" />
+              <label>Event threshold</label>
+              <input id="threshold" type="number" min="0" max="1" step="0.05" value="0.6" />
+              <label>Min confidence</label>
+              <input id="minConfidence" type="number" min="0" max="1" step="0.05" value="0.6" />
+              <label>Target label</label>
+              <select id="targetLabel">
+                <option value="all" selected>all</option>
+                <option value="animal">animal</option>
+                <option value="bag">bag</option>
+              </select>
+              <button type="submit">Analyser la video</button>
+            </form>
+
+            <form id="youtubeForm" class="form hidden">
+              <label>YouTube URL</label>
+              <input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+              <button type="submit">Envoyer</button>
+            </form>
+          </div>
+
+          <div class="panel results">
+            <p class="panel-kicker">Live Output</p>
+            <h2>Resultats dynamiques</h2>
+            <div id="imageResult" class="result-card hidden"></div>
+            <div id="videoSummary" class="result-card hidden"></div>
+            <h3 id="eventsTitle">Events detectes</h3>
+            <div id="events" class="events-grid"></div>
+          </div>
+        </section>
+
+        <section id="viewTheft" class="view">
+          <div class="panel controls">
+            <p class="panel-kicker">Loss Prevention</p>
+            <h2>Analyse Video</h2>
+            <div class="button-grid">
+              <button id="btnTheftVideo" class="feature-btn primary" type="button">Upload Video</button>
+              <button id="btnTheftYoutube" class="feature-btn" type="button">YouTube URL</button>
+              <button class="feature-btn disabled" disabled type="button">Live Camera</button>
+            </div>
+
+            <form id="theftVideoForm" class="form hidden">
+              <label>Video</label>
+              <input id="theftVideoInput" type="file" accept="video/*" required />
+              <label>Person confidence</label>
+              <input id="confPerson" type="number" min="0" max="1" step="0.05" value="0.3" />
+              <label>Theft confidence</label>
+              <input id="confTheft" type="number" min="0" max="1" step="0.05" value="0.4" />
+              <label>Frame stride (vitesse)</label>
+              <input id="frameStride" type="number" min="1" max="10" step="1" value="2" />
+              <button type="submit">Lancer surveillance video</button>
+            </form>
+
+            <form id="theftYoutubeForm" class="form hidden">
+              <label>YouTube URL</label>
+              <input id="theftYoutubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." required />
+              <label>Person confidence</label>
+              <input id="confPersonYt" type="number" min="0" max="1" step="0.05" value="0.3" />
+              <label>Theft confidence</label>
+              <input id="confTheftYt" type="number" min="0" max="1" step="0.05" value="0.4" />
+              <label>Frame stride (vitesse)</label>
+              <input id="frameStrideYt" type="number" min="1" max="10" step="1" value="2" />
+              <button type="submit">Lancer surveillance YouTube</button>
+            </form>
+          </div>
+          <div class="panel results">
+            <p class="panel-kicker">Incident Review</p>
+            <h2>Resultats surveillance</h2>
+            <div id="theftSummary" class="result-card hidden"></div>
+            <div class="result-card">
+              <p><strong>Dossier captures auto:</strong> <code>backend/captures/</code></p>
+              <p class="small-muted">Les visages/crops sont enregistres automatiquement seulement si statut SUSPECT ou THEFT.</p>
+            </div>
+            <h3>Evenements suspects</h3>
+            <div id="theftEvents" class="events-grid"></div>
+            <div class="result-card suspect-vault">
+              <div class="vault-header">
+                <div>
+                  <p class="panel-kicker">Local Watchlist</p>
+                  <h3>Visages suspects sauvegardes</h3>
+                </div>
+                <button id="theftFacesRefreshBtn" type="button" class="feature-btn">Rafraichir</button>
+              </div>
+              <p class="small-muted">Galerie persistante des visages cropes depuis les statuts SUSPECT ou THEFT.</p>
+              <div id="theftFaceGallery" class="face-gallery"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="viewQueue" class="view">
+          <div class="panel controls">
+            <p class="panel-kicker">Checkout Flow</p>
+            <h2>Analyse Files Caisse</h2>
+            <form id="queueVideoForm" class="form">
+              <label>Video CCTV</label>
+              <input id="queueVideoInput" type="file" accept="video/*" required />
+              <label>Person confidence</label>
+              <input id="queueConfPerson" type="number" min="0" max="1" step="0.05" value="0.25" />
+              <label>IOU</label>
+              <input id="queueIou" type="number" min="0" max="1" step="0.05" value="0.5" />
+              <label>Image size</label>
+              <input id="queueImgsz" type="number" min="320" max="1920" step="32" value="1280" />
+              <label>Frame stride</label>
+              <input id="queueStride" type="number" min="1" max="10" step="1" value="1" />
+              <label>Min overlap (zone)</label>
+              <input id="queueMinOverlap" type="number" min="0" max="1" step="0.05" value="0.2" />
+              <label>Min valid count</label>
+              <input id="queueMinValidCount" type="number" min="0" max="100" step="1" value="1" />
+              <button type="submit">Lancer recommandation caisse</button>
+            </form>
+            <button id="queueRefreshBtn" type="button" class="feature-btn">Rafraichir etat temps reel</button>
+          </div>
+
+          <div class="panel results">
+            <p class="panel-kicker">Decision Engine</p>
+            <h2>Decision Caisse</h2>
+            <div id="queueJobStatus" class="result-card hidden"></div>
+            <div id="queueSummary" class="result-card hidden"></div>
+            <div class="result-card">
+              <p><strong>Source mobile:</strong> le client lit <code>/queue-recommendation/latest</code></p>
+              <p class="small-muted">La recommandation est mise a jour apres chaque analyse web employee.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="viewDocs" class="view">
+          <div class="panel controls">
+            <p class="panel-kicker">Document Trust</p>
+            <h2>Verification Documents</h2>
+            <form id="docsForm" class="form">
+              <label>Document image</label>
+              <input id="docsImageInput" type="file" accept="image/*" required />
+              <button type="submit">Verifier document</button>
+            </form>
+          </div>
+          <div class="panel results">
+            <p class="panel-kicker">Forgery Model</p>
+            <h2>Resultat Forgery</h2>
+            <div id="docsSummary" class="result-card hidden"></div>
+            <div id="docsVisuals" class="events-grid"></div>
+          </div>
+        </section>
+
+        <section id="viewAccess" class="view">
+          <div class="panel controls">
+            <p class="panel-kicker">Access Control</p>
+            <h2>Employee Access</h2>
+            <form id="accessForm" class="form">
+              <label>Camera employee</label>
+              <video id="accessCamera" autoplay playsinline muted class="annotated"></video>
+              <canvas id="accessCanvas" class="hidden"></canvas>
+              <label>Nom employe (pour enregistrement)</label>
+              <input id="accessEmployeeName" type="text" placeholder="Ex: Omar Ben Ali" />
+              <div class="button-grid">
+                <button id="accessStartCameraBtn" type="button" class="feature-btn">Activer camera</button>
+                <button id="accessStopCameraBtn" type="button" class="feature-btn">Arreter camera</button>
+              </div>
+              <div class="button-grid">
+                <button id="accessRegisterBtn" type="button" class="feature-btn primary">Enregistrer visage</button>
+                <button type="submit">Verifier acces (camera)</button>
+              </div>
+            </form>
+          </div>
+          <div class="panel results">
+            <p class="panel-kicker">Identity Result</p>
+            <h2>Resultat Access</h2>
+            <div id="accessSummary" class="result-card hidden"></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <p id="loadingText">Analyse en cours...</p>
+      <div class="progress-track"><div class="progress-bar"></div></div>
+    </div>
+  </div>
+  <div id="flash" class="flash hidden"></div>
+
+  <script src="./app.js?v=20260504-monoprix-redesign-8"></script>
+</body>
+</html>
+
