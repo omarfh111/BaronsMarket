@@ -34,13 +34,10 @@ class ProductRetrievalService:
         self.yolo_device = yolo_device()
 
         self.yolo_model = YOLO(str(_resolve_path(settings.yolo_model_path)))
-        clip_model_id = "openai/clip-vit-base-patch32"
-        self.clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
-        # Transformers blocks torch.load on torch<2.6 for CVE-2025-32434.
-        # The official CLIP checkpoint provides safetensors, so we load that
-        # format explicitly and avoid the unsafe pickle-based path.
-        self.clip_model = CLIPModel.from_pretrained(clip_model_id, use_safetensors=True).to(self.device)
-        self.clip_model.eval()
+        self.clip_model_id = "openai/clip-vit-base-patch32"
+        self.clip_processor: CLIPProcessor | None = None
+        self.clip_model: CLIPModel | None = None
+        self.clip_load_error: str | None = None
 
         index_path = _resolve_path(settings.faiss_index_path)
         self.faiss_index = faiss.read_index(str(index_path))
@@ -155,12 +152,37 @@ class ProductRetrievalService:
         return image.crop((x1, y1, x2, y2))
 
     def _encode_image(self, image: Image.Image) -> np.ndarray:
+        self._ensure_clip_loaded()
+        assert self.clip_processor is not None
+        assert self.clip_model is not None
         inputs = self.clip_processor(images=image, return_tensors="pt").to(self.device)
         with torch.no_grad():
             image_features = self.clip_model.get_image_features(**inputs)
         vector = image_features.detach().cpu().numpy().astype(np.float32)
         norms = np.linalg.norm(vector, axis=1, keepdims=True)
         return vector / np.clip(norms, 1e-12, None)
+
+    def _ensure_clip_loaded(self) -> None:
+        if self.clip_processor is not None and self.clip_model is not None:
+            return
+        if self.clip_load_error:
+            raise RuntimeError(self.clip_load_error)
+        try:
+            self.clip_processor = CLIPProcessor.from_pretrained(self.clip_model_id)
+            # Transformers blocks torch.load on torch<2.6 for CVE-2025-32434.
+            # The official CLIP checkpoint provides safetensors, so we load that
+            # format explicitly and avoid the unsafe pickle-based path.
+            self.clip_model = CLIPModel.from_pretrained(
+                self.clip_model_id,
+                use_safetensors=True,
+            ).to(self.device)
+            self.clip_model.eval()
+        except Exception as exc:
+            self.clip_load_error = (
+                "CLIP model could not be loaded. Ensure HuggingFace access is available "
+                "or pre-cache openai/clip-vit-base-patch32 in the backend environment."
+            )
+            raise RuntimeError(self.clip_load_error) from exc
 
     @staticmethod
     def _pick_value(item: Dict[str, Any], keys: List[str], fallback: Any) -> Any:
