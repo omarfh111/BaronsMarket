@@ -31,7 +31,7 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model4Service:
+class TheftSurveillanceService:
     def __init__(self) -> None:
         self.device = yolo_device()
         self.use_half = self.device != "cpu"
@@ -523,4 +523,5 @@ class Model4Service:
         return self._process_tracking_results(results, conf_theft=conf_theft, max_frames=max_frames)
 
 
-model4_service = Model4Service()
+theft_surveillance_service = TheftSurveillanceService()
+

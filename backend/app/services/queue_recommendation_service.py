@@ -29,7 +29,7 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model5Service:
+class QueueRecommendationService:
     def __init__(self) -> None:
         self.device = yolo_device()
         weights = settings.model5_weights_path
@@ -100,7 +100,7 @@ class Model5Service:
         if w == 0 or h == 0:
             return 0.0
 
-        box_poly = Model5Service._bbox_polygon(box).astype(np.float32)
+        box_poly = QueueRecommendationService._bbox_polygon(box).astype(np.float32)
         zone_poly = zone_polygon.astype(np.float32)
         inter_area, _ = cv2.intersectConvexConvex(box_poly, zone_poly)
         if inter_area <= 0:
@@ -429,4 +429,5 @@ class Model5Service:
         }
 
 
-model5_service = Model5Service()
+queue_recommendation_service = QueueRecommendationService()
+

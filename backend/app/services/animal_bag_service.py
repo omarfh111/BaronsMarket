@@ -25,7 +25,7 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model3Service:
+class AnimalBagService:
     def __init__(self) -> None:
         self.device = torch_device()
         self.labels = ["animal", "bag"]
@@ -248,4 +248,5 @@ class Model3Service:
         }
 
 
-model3_service = Model3Service()
+animal_bag_service = AnimalBagService()
+

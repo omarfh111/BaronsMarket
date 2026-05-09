@@ -282,4 +282,5 @@ class ProductRetrievalService:
         return self._retrieve_candidates(query_embedding, requested_k=requested_k, detector_conf=0.0)
 
 
-product_service = ProductRetrievalService()
+product_retrieval_service = ProductRetrievalService()
+

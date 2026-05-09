@@ -35,17 +35,17 @@ from app.schemas import (
 from app.services.catalog_service import catalog_service
 from app.services.checkout_service import checkout_repository, integrations_health_service
 from app.services.device import device_info
-from app.services.model5_service import model5_service
-from app.services.model6_service import vegetable_freshness_service
+from app.services.queue_recommendation_service import queue_recommendation_service
+from app.services.vegetable_freshness_service import vegetable_freshness_service
 from app.services.meat_freshness_service import meat_freshness_service
 from app.services.assistant_service import assistant_service
-from app.services.model3_service import model3_service
-from app.services.model4_service import model4_service
-from app.services.model_service import product_service
+from app.services.animal_bag_service import animal_bag_service
+from app.services.theft_surveillance_service import theft_surveillance_service
+from app.services.product_retrieval_service import product_retrieval_service
 from app.services.qdrant_service import qdrant_service
-from app.services.model7_service import fidelity_card_service
-from app.services.model8_service import forged_docs_service
-from app.services.model9_service import employee_access_service
+from app.services.fidelity_card_service import fidelity_card_service
+from app.services.forged_docs_service import forged_docs_service
+from app.services.employee_access_service import employee_access_service
 from app.services.store_analytics_service import store_analytics_service
 
 app = FastAPI(title=settings.app_name)
@@ -248,7 +248,7 @@ async def detect(
         raise HTTPException(status_code=400, detail="Empty image file.")
 
     try:
-        predictions = product_service.detect_and_retrieve(payload, top_k=top_k)
+        predictions = product_retrieval_service.detect_and_retrieve(payload, top_k=top_k)
     except UnidentifiedImageError as exc:
         raise HTTPException(status_code=400, detail="Invalid image content.") from exc
     except OSError as exc:
@@ -325,7 +325,7 @@ async def model3_predict_image(
         raise HTTPException(status_code=400, detail="Empty image file.")
 
     try:
-        result = model3_service.predict_image_bytes(payload, min_confidence=min_confidence)
+        result = animal_bag_service.predict_image_bytes(payload, min_confidence=min_confidence)
     except UnidentifiedImageError as exc:
         raise HTTPException(status_code=400, detail="Invalid image content.") from exc
     except OSError as exc:
@@ -349,7 +349,7 @@ async def model3_analyze_video(
         raise HTTPException(status_code=400, detail="Empty video file.")
 
     try:
-        result = model3_service.analyze_video_bytes(
+        result = animal_bag_service.analyze_video_bytes(
             payload,
             sample_every_sec=sample_every_sec,
             event_threshold=event_threshold,
@@ -382,7 +382,7 @@ async def theft_analyze_video(
     payload = await video.read()
     if not payload:
         raise HTTPException(status_code=400, detail="Empty video file.")
-    result = model4_service.analyze_video(
+    result = theft_surveillance_service.analyze_video(
         payload,
         conf_person=conf_person,
         conf_theft=conf_theft,
@@ -402,7 +402,7 @@ async def theft_submit_video(
     payload = await video.read()
     if not payload:
         raise HTTPException(status_code=400, detail="Empty video file.")
-    job = model4_service.submit_video_job(
+    job = theft_surveillance_service.submit_video_job(
         payload,
         conf_person=conf_person,
         conf_theft=conf_theft,
@@ -414,17 +414,17 @@ async def theft_submit_video(
 
 @app.get("/theft/latest", response_model=TheftVideoResponse)
 async def theft_latest() -> TheftVideoResponse:
-    return TheftVideoResponse(**model4_service.latest())
+    return TheftVideoResponse(**theft_surveillance_service.latest())
 
 
 @app.get("/theft/job-latest", response_model=TheftVideoJobStatusResponse)
 async def theft_job_latest() -> TheftVideoJobStatusResponse:
-    return TheftVideoJobStatusResponse(**model4_service.latest_job_status())
+    return TheftVideoJobStatusResponse(**theft_surveillance_service.latest_job_status())
 
 
 @app.get("/theft/suspect-faces")
 async def theft_suspect_faces(limit: int = Query(default=60, ge=1, le=200)) -> dict:
-    return model4_service.list_suspect_faces(limit=limit)
+    return theft_surveillance_service.list_suspect_faces(limit=limit)
 
 
 @app.post("/theft/analyze-youtube", response_model=TheftVideoResponse)
@@ -436,7 +436,7 @@ async def theft_analyze_youtube(
     max_frames: int = Query(default=900, ge=60, le=5000),
 ) -> TheftVideoResponse:
     try:
-        result = model4_service.analyze_youtube(
+        result = theft_surveillance_service.analyze_youtube(
             youtube_url=youtube_url,
             conf_person=conf_person,
             conf_theft=conf_theft,
@@ -465,7 +465,7 @@ async def queue_recommendation_analyze_video(
     if not payload:
         raise HTTPException(status_code=400, detail="Empty video file.")
     try:
-        result = model5_service.analyze_video(
+        result = queue_recommendation_service.analyze_video(
             payload,
             conf_person=conf_person,
             iou=iou,
@@ -481,7 +481,7 @@ async def queue_recommendation_analyze_video(
 
 @app.get("/queue-recommendation/latest", response_model=QueueRecommendationResponse)
 async def queue_recommendation_latest() -> QueueRecommendationResponse:
-    return QueueRecommendationResponse(**model5_service.latest())
+    return QueueRecommendationResponse(**queue_recommendation_service.latest())
 
 
 @app.post("/queue-recommendation/submit-video", response_model=QueueRecommendationJobResponse)
@@ -499,7 +499,7 @@ async def queue_recommendation_submit_video(
     if not payload:
         raise HTTPException(status_code=400, detail="Empty video file.")
     try:
-        job = model5_service.submit_video_job(
+        job = queue_recommendation_service.submit_video_job(
             payload,
             conf_person=conf_person,
             iou=iou,
@@ -516,7 +516,7 @@ async def queue_recommendation_submit_video(
 
 @app.get("/queue-recommendation/job-latest", response_model=QueueRecommendationJobStatusResponse)
 async def queue_recommendation_job_latest() -> QueueRecommendationJobStatusResponse:
-    return QueueRecommendationJobStatusResponse(**model5_service.latest_job_status())
+    return QueueRecommendationJobStatusResponse(**queue_recommendation_service.latest_job_status())
 
 
 @app.post("/queue-recommendation/analyze-youtube", response_model=QueueRecommendationResponse)
@@ -525,3 +525,4 @@ async def queue_recommendation_analyze_youtube() -> QueueRecommendationResponse:
         status_code=400,
         detail="YouTube direct stream not enabled yet for queue recommendation on this environment.",
     )
+
