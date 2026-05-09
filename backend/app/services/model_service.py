@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
@@ -9,9 +10,15 @@ import numpy as np
 import torch
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
+
+_ultralytics_config_dir = Path(__file__).resolve().parents[2] / "outputs" / "ultralytics"
+_ultralytics_config_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", str(_ultralytics_config_dir))
+
 from ultralytics import YOLO
 
 from app.core.config import settings
+from app.services.device import torch_device, yolo_device
 
 
 def _resolve_path(path: Path) -> Path:
@@ -23,11 +30,16 @@ def _resolve_path(path: Path) -> Path:
 
 class ProductRetrievalService:
     def __init__(self) -> None:
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch_device()
+        self.yolo_device = yolo_device()
 
         self.yolo_model = YOLO(str(_resolve_path(settings.yolo_model_path)))
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self.device)
+        clip_model_id = "openai/clip-vit-base-patch32"
+        self.clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
+        # Transformers blocks torch.load on torch<2.6 for CVE-2025-32434.
+        # The official CLIP checkpoint provides safetensors, so we load that
+        # format explicitly and avoid the unsafe pickle-based path.
+        self.clip_model = CLIPModel.from_pretrained(clip_model_id, use_safetensors=True).to(self.device)
         self.clip_model.eval()
 
         index_path = _resolve_path(settings.faiss_index_path)
@@ -227,7 +239,12 @@ class ProductRetrievalService:
     def detect_and_retrieve(self, image_bytes: bytes, top_k: int | None = None) -> List[Dict[str, Any]]:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-        results = self.yolo_model.predict(image, conf=settings.yolo_confidence, verbose=False)
+        results = self.yolo_model.predict(
+            image,
+            conf=settings.yolo_confidence,
+            device=self.yolo_device,
+            verbose=False,
+        )
         requested_k = max(1, top_k or settings.top_k)
         if not results:
             query_embedding = self._encode_image(image)

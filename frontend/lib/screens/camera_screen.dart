@@ -6,10 +6,19 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'meat_freshness_result_screen.dart';
 import 'prediction_screen.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final bool meatFreshnessMode;
+  final bool vegetableFreshnessMode;
+  final bool catalogFlow;
+  const CameraScreen({
+    super.key,
+    this.meatFreshnessMode = false,
+    this.vegetableFreshnessMode = false,
+    this.catalogFlow = false,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -34,6 +43,24 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
 
+      if (widget.meatFreshnessMode || widget.vegetableFreshnessMode) {
+        final result = widget.vegetableFreshnessMode
+            ? await _api.detectVegetableFreshness(File(capture.path))
+            : await _api.detectMeatFreshness(File(capture.path));
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MeatFreshnessResultScreen(
+              result: result,
+              imagePath: capture.path,
+              freshnessType: widget.vegetableFreshnessMode ? 'vegetable' : 'meat',
+            ),
+          ),
+        );
+        return;
+      }
+
       final predictions = await _api.detectProducts(File(capture.path), topK: 3);
       if (!mounted) return;
 
@@ -43,6 +70,7 @@ class _CameraScreenState extends State<CameraScreen> {
           builder: (_) => PredictionScreen(
             predictions: predictions,
             imagePath: capture.path,
+            catalogFlow: widget.catalogFlow,
           ),
         ),
       );
@@ -78,14 +106,22 @@ class _CameraScreenState extends State<CameraScreen> {
                   const Icon(Icons.camera_alt_outlined, size: 64),
                   const SizedBox(height: 12),
                   Text(
-                    'Capture product image',
+                    (widget.meatFreshnessMode || widget.vegetableFreshnessMode)
+                        ? (widget.vegetableFreshnessMode
+                              ? 'Capture vegetable image'
+                              : 'Capture meat image')
+                        : 'Capture product image',
                     style: Theme.of(
                       context,
                     ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Take a clear photo of one product for best AI matching.',
+                    (widget.meatFreshnessMode || widget.vegetableFreshnessMode)
+                        ? (widget.vegetableFreshnessMode
+                              ? 'Take a clear photo of the vegetable to estimate freshness.'
+                              : 'Take a clear photo of the meat to estimate freshness.')
+                        : 'Take a clear photo of one product for best AI matching.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -96,12 +132,20 @@ class _CameraScreenState extends State<CameraScreen> {
             if (_loading) ...[
               const SpinKitPulse(color: AppTheme.primaryRed, size: 44),
               const SizedBox(height: 12),
-              const Text('Analyzing product...'),
+              Text(
+                (widget.meatFreshnessMode || widget.vegetableFreshnessMode)
+                    ? 'Analyzing freshness...'
+                    : 'Analyzing product...',
+              ),
             ] else
               FilledButton.icon(
                 onPressed: _captureAndDetect,
                 icon: const Icon(Icons.camera),
-                label: const Text('Capture & Detect'),
+                label: Text(
+                  (widget.meatFreshnessMode || widget.vegetableFreshnessMode)
+                      ? 'Capture & Analyze Freshness'
+                      : 'Capture & Detect',
+                ),
               ),
             if (_error != null) ...[
               const SizedBox(height: 20),

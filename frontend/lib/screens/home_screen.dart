@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo_placeholder.dart';
+import 'assistant_screen.dart';
 import 'camera_screen.dart';
+import 'catalog_screen.dart';
 import 'cart_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -87,7 +89,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Scan products, confirm AI suggestions, and checkout with a single QR code.',
+                    'Choisissez une fonctionnalite.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -95,15 +97,92 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CameraScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: const Text('Scan Product'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CameraScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Scan Product'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AssistantScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.smart_toy_outlined),
+                      label: const Text('AI Recommendation Assistant'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CameraScreen(meatFreshnessMode: true),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.restaurant),
+                      label: const Text('Analyze Meat Freshness'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CameraScreen(vegetableFreshnessMode: true),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.eco_outlined),
+                      label: const Text('Analyze Vegetable Freshness'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: const Text('Browse Product Catalog'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CartScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.shopping_cart_checkout),
+                      label: Text('Open Cart ($cartCount)'),
+                    ),
                   ),
                 ],
               ),

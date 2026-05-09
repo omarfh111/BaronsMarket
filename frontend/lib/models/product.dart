@@ -3,6 +3,7 @@ class Product {
   final String brand;
   final double price;
   final String image;
+  final bool isCatalogSource;
   final double? confidence;
   final double? detectorConfidence;
 
@@ -11,6 +12,7 @@ class Product {
     required this.brand,
     required this.price,
     required this.image,
+    this.isCatalogSource = false,
     this.confidence,
     this.detectorConfidence,
   });
@@ -21,6 +23,7 @@ class Product {
       brand: (json['brand'] ?? 'Unknown Brand').toString(),
       price: (json['price'] as num?)?.toDouble() ?? 0,
       image: (json['image'] ?? '').toString(),
+      isCatalogSource: (json['is_catalog_source'] as bool?) ?? false,
       confidence: (json['confidence'] as num?)?.toDouble(),
       detectorConfidence: (json['detector_confidence'] as num?)?.toDouble(),
     );
@@ -35,4 +38,3 @@ class CartItem {
 
   double get subtotal => product.price * quantity;
 }
-
