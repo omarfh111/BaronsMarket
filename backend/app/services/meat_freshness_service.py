@@ -10,6 +10,8 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 
+from app.services.device import torch_device
+
 
 def _resolve_path(path: Path) -> Path:
     if path.is_absolute():
@@ -41,7 +43,7 @@ class MeatFreshnessNet(nn.Module):
 
 class MeatFreshnessService:
     def __init__(self) -> None:
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch_device()
         self.labels: List[str] = ["Fresh", "Half-Fresh", "Spoiled"]
         self.model = MeatFreshnessNet(num_classes=len(self.labels)).to(self.device)
         self.model.eval()
@@ -93,4 +95,3 @@ class MeatFreshnessService:
 
 
 meat_freshness_service = MeatFreshnessService()
-

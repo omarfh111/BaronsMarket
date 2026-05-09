@@ -1,66 +1,132 @@
-# Project Split: Mobile Client + Web Employee
+# Start Here - BaronsMarket
 
-This repository is now organized to separate:
+This file is the quick entry point for running and evaluating the BaronsMarket AI Platform.
 
-- mobile app for clients
-- web app for employees
-- shared ML/inference backend
+## 1. Project Context
 
-## Current working code (already exists)
+BaronsMarket is an academic smart-retail engineering project developed at Esprit School of Engineering. It combines:
 
-- Mobile client app: `frontend/`
-- Inference API backend: `backend/`
-- Existing model assets: `model/`
+- Flutter mobile shopping app
+- FastAPI backend
+- Employee web dashboard
+- Computer vision models
+- Multi-agent RAG shopping assistant
+- Qdrant semantic search
+- Supabase persistence
+- CUDA-ready inference for GPU servers
 
-## New target structure (prepared)
+## 2. Main Folders
 
-- `apps/mobile-client/`
-- `apps/web-employee/`
-- `services/inference-api/`
-- `ml/models/model_1/`
-- `ml/models/model_2/`
-- `ml/notebooks/`
-- `data/raw/`, `data/processed/`, `data/exports/`
+```text
+backend/                     FastAPI backend and AI services
+frontend/                    Flutter Android app
+apps/web-employee/public/    Employee dashboard served by FastAPI
+model/                       Model assets and configuration files
+ml/models/                   Model code and trained weights
+market/                      Product catalog data
+docs/                        Documentation and screenshot notes
+```
 
-## Where to put files now
+## 3. First Backend Run
 
-1. Mobile client source code:
-- keep using `frontend/` for now
-- later move into `apps/mobile-client/`
+```powershell
+cd backend
+python -m venv ..\venv
+..\venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-2. Web employee source code:
-- start directly in `apps/web-employee/`
-- put pages/components in `apps/web-employee/src/`
+Open:
 
-3. API backend code:
-- keep using `backend/` for now
-- later move into `services/inference-api/`
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/models/device`
+- `http://127.0.0.1:8000/employee/`
 
-4. Models:
-- product detection/retrieval model files -> `ml/models/model_1/`
-- meat freshness model files (`best_model_meat_freshness_detection_Efficent_Net.pth`) -> `ml/models/model_2/`
+## 4. CUDA / GPU Check
 
-5. Notebooks:
-- all training notebooks (`meatfreshness...ipynb`, etc.) -> `ml/notebooks/`
+Use the same Python environment that starts the backend:
 
-6. Datasets and exports:
-- original datasets -> `data/raw/`
-- cleaned/transformed datasets -> `data/processed/`
-- generated outputs/reports -> `data/exports/`
+```powershell
+python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
 
-## Backend config when you move models
+The project supports:
 
-In `backend/.env`, set:
+```env
+MODEL_DEVICE=auto
+```
 
-- `MODEL_DIR=../ml/models/model_1`
-- `YOLO_MODEL_PATH=../ml/models/model_1/best.pt`
-- `FAISS_INDEX_PATH=../ml/models/model_1/index.faiss`
-- `PRODUCT_EMBEDDINGS_PATH=../ml/models/model_1/product_embeddings_aug.npy`
-- `PRODUCTS_JSON_PATH=../ml/models/model_1/products_clean .json`
+Allowed values:
 
-The meat freshness service already reads from:
-- `../model/model_2/...` currently
+- `auto`: use CUDA if available, otherwise CPU
+- `cuda`: prefer CUDA
+- `cpu`: force CPU
 
-When you move it to `ml/models/model_2`, update:
-- `backend/app/services/meat_freshness_service.py`
+## 5. Mobile App Run
 
+```powershell
+cd frontend
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://<PC_LOCAL_IP>:8000
+```
+
+Build APK:
+
+```powershell
+flutter build apk --release --dart-define=API_BASE_URL=http://<PC_LOCAL_IP>:8000
+```
+
+APK path:
+
+```text
+frontend/build/app/outputs/flutter-apk/app-release.apk
+```
+
+## 6. Evaluation Flow
+
+Recommended demo order:
+
+1. Open employee dashboard at `/employee/`.
+2. Test queue recommendation with a video.
+3. Test theft surveillance with a video.
+4. Test forged document detection.
+5. Test employee access verification.
+6. Open the mobile app and scan a product.
+7. Test cart and checkout QR.
+8. Ask the assistant for a recipe and verify it returns a complete ingredient basket from catalog products.
+9. Open analytics dashboard.
+10. Show `/models/device` to prove CUDA/GPU readiness.
+
+## 7. Assistant Behavior
+
+The assistant uses multi-agent RAG logic:
+
+- General agent for friendly product search and recommendations.
+- Chef agent for recipes and automatic ingredient basket creation.
+- Nutrition agents for healthier guidance.
+- Support agent for application/help issues.
+- Router agent to select the right agent.
+- Search translator agent to improve Qdrant/catalog search.
+
+For recipe requests, product cards are ingredients of the recipe basket, not random product recommendations.
+
+## 8. Deployment Notes
+
+Development can run locally. For remote testing, Cloudflare Tunnel can expose the backend temporarily.
+
+Recommended production target:
+
+- GPU server such as Hetzner with CUDA-capable NVIDIA GPU
+- Supabase for persistence
+- Qdrant for vector search
+- FastAPI serving backend and employee dashboard
+
+## 9. Documentation Checklist Before Final Submission
+
+- Add final live demo URL if available.
+- Add real screenshots under `docs/screenshots/`.
+- Add GitHub topics listed in `README.md` from the repository About panel.
+- Verify `.env.example` does not contain secrets.
+- Verify `GET /models/device` shows expected GPU status on the deployment machine.

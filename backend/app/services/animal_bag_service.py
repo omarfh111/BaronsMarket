@@ -15,6 +15,7 @@ from torchvision import transforms
 from torchvision.models import efficientnet_b0
 
 from app.core.config import settings
+from app.services.device import torch_device
 
 
 def _resolve_path(path: Path) -> Path:
@@ -24,9 +25,9 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model3Service:
+class AnimalBagService:
     def __init__(self) -> None:
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch_device()
         self.labels = ["animal", "bag"]
         self.model = self._build_model().to(self.device)
         self.model.eval()
@@ -247,4 +248,5 @@ class Model3Service:
         }
 
 
-model3_service = Model3Service()
+animal_bag_service = AnimalBagService()
+

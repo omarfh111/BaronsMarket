@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import time
 import uuid
@@ -10,9 +11,15 @@ from typing import Any
 
 import cv2
 import numpy as np
+
+_ultralytics_config_dir = Path(__file__).resolve().parents[2] / "outputs" / "ultralytics"
+_ultralytics_config_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", str(_ultralytics_config_dir))
+
 from ultralytics import YOLO
 
 from app.core.config import settings
+from app.services.device import yolo_device
 
 
 def _resolve_path(path: Path) -> Path:
@@ -22,8 +29,9 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model5Service:
+class QueueRecommendationService:
     def __init__(self) -> None:
+        self.device = yolo_device()
         weights = settings.model5_weights_path
         resolved = _resolve_path(Path(weights))
         self.model = YOLO(str(resolved if resolved.exists() else weights))
@@ -92,7 +100,7 @@ class Model5Service:
         if w == 0 or h == 0:
             return 0.0
 
-        box_poly = Model5Service._bbox_polygon(box).astype(np.float32)
+        box_poly = QueueRecommendationService._bbox_polygon(box).astype(np.float32)
         zone_poly = zone_polygon.astype(np.float32)
         inter_area, _ = cv2.intersectConvexConvex(box_poly, zone_poly)
         if inter_area <= 0:
@@ -187,6 +195,7 @@ class Model5Service:
         results = self.model.track(
             source=tmp_path,
             conf=conf_person,
+            device=self.device,
             iou=iou,
             imgsz=imgsz,
             classes=classes,
@@ -420,4 +429,5 @@ class Model5Service:
         }
 
 
-model5_service = Model5Service()
+queue_recommendation_service = QueueRecommendationService()
+

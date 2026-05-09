@@ -95,7 +95,7 @@ class QdrantService:
             body = self._http(
                 "POST",
                 f"{base}/collections/{name}/points/search",
-                payload={"vector": vec, "limit": max(1, min(top_k, 10)), "with_payload": True},
+                payload={"vector": vec, "limit": max(1, min(top_k, 30)), "with_payload": True},
             )
             results = body.get("result", [])
             out = []

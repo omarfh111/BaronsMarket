@@ -2,17 +2,26 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 import tempfile
 import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
+
+_ultralytics_config_dir = Path(__file__).resolve().parents[2] / "outputs" / "ultralytics"
+_ultralytics_config_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", str(_ultralytics_config_dir))
+
 from ultralytics import YOLO
 
 from app.core.config import settings
+from app.services.device import yolo_device
 
 
 def _resolve_path(path: Path) -> Path:
@@ -22,8 +31,11 @@ def _resolve_path(path: Path) -> Path:
     return (backend_root / path).resolve()
 
 
-class Model4Service:
+class TheftSurveillanceService:
     def __init__(self) -> None:
+        self.device = yolo_device()
+        self.use_half = self.device != "cpu"
+        self.theft_batch_size = 16
         self.person_model = YOLO(str(_resolve_path(settings.model4_person_weights_path)))
         self.theft_model = YOLO(str(_resolve_path(settings.model4_theft_weights_path)))
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -34,9 +46,23 @@ class Model4Service:
         self.captures_dir.mkdir(parents=True, exist_ok=True)
         self.suspect_faces_dir = self.captures_dir / "suspect_faces"
         self.suspect_faces_dir.mkdir(parents=True, exist_ok=True)
+        self.latest_result: dict[str, Any] | None = None
+        self.latest_job: dict[str, Any] = {
+            "job_id": None,
+            "status": "idle",
+            "message": "No theft analysis job started yet.",
+            "updated_at": None,
+        }
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="theft-analysis")
 
-    def _encode_data_url_jpg(self, bgr_img: np.ndarray) -> str:
-        ok, encoded = cv2.imencode(".jpg", bgr_img)
+    def _encode_data_url_jpg(self, bgr_img: np.ndarray, max_width: int = 640, quality: int = 70) -> str:
+        if bgr_img.size == 0:
+            return ""
+        h, w = bgr_img.shape[:2]
+        if w > max_width:
+            scale = max_width / float(w)
+            bgr_img = cv2.resize(bgr_img, (max_width, max(1, int(h * scale))), interpolation=cv2.INTER_AREA)
+        ok, encoded = cv2.imencode(".jpg", bgr_img, [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)])
         if not ok:
             return ""
         return "data:image/jpeg;base64," + base64.b64encode(encoded.tobytes()).decode("utf-8")
@@ -190,6 +216,7 @@ class Model4Service:
         event_saved: set[int] = set()
         face_saved: set[int] = set()
         events: list[dict[str, Any]] = []
+        max_inline_events = 25
         status_counts = {"NORMAL": 0, "SUSPECT": 0, "THEFT": 0}
         fps = 0.0
         frame_index = 0
@@ -205,6 +232,8 @@ class Model4Service:
             if r.boxes is not None and r.boxes.id is not None:
                 boxes = r.boxes.xyxy.cpu().numpy()
                 ids = r.boxes.id.cpu().numpy()
+                detections: list[dict[str, Any]] = []
+                crops: list[np.ndarray] = []
 
                 for box, track_id_float in zip(boxes, ids):
                     track_id = int(track_id_float)
@@ -217,14 +246,36 @@ class Model4Service:
                     if crop.size == 0:
                         continue
 
-                    theft_result = self.theft_model(crop, conf=conf_theft, verbose=False)
-                    is_theft = 0
-                    for tr in theft_result:
+                    detections.append(
+                        {
+                            "track_id": track_id,
+                            "bbox": (x1, y1, x2, y2),
+                            "crop": crop,
+                        }
+                    )
+                    crops.append(crop)
+
+                theft_flags = [0] * len(detections)
+                for start in range(0, len(crops), self.theft_batch_size):
+                    batch = crops[start : start + self.theft_batch_size]
+                    theft_results = self.theft_model.predict(
+                        batch,
+                        conf=conf_theft,
+                        device=self.device,
+                        half=self.use_half,
+                        verbose=False,
+                    )
+                    for offset, tr in enumerate(theft_results):
                         if tr.boxes is None:
                             continue
                         for cls in tr.boxes.cls:
                             if int(cls) == 0:
-                                is_theft = 1
+                                theft_flags[start + offset] = 1
+                                break
+
+                for detection, is_theft in zip(detections, theft_flags):
+                    track_id = int(detection["track_id"])
+                    x1, y1, x2, y2 = detection["bbox"]
 
                     if track_id not in id_history:
                         id_history[track_id] = []
@@ -251,30 +302,33 @@ class Model4Service:
                     saved_face_data_url = ""
                     saved_face_path = ""
                     saved_source = "none"
-                    face_abs_bbox = None
-                    local_face_box, local_face_crop, face_detection_source = self._find_face_for_person(
-                        clean_frame, (x1, y1, x2, y2)
-                    )
-                    if local_face_crop is not None:
-                        face_abs_bbox = local_face_box
-                        cv2.rectangle(
-                            frame,
-                            (face_abs_bbox[0], face_abs_bbox[1]),
-                            (face_abs_bbox[2], face_abs_bbox[3]),
-                            (255, 255, 0),
-                            2,
-                        )
-                        cv2.putText(
-                            frame,
-                            "FACE",
-                            (face_abs_bbox[0], max(20, face_abs_bbox[1] - 8)),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            (255, 255, 0),
-                            2,
-                        )
 
                     if status in {"SUSPECT", "THEFT"}:
+                        local_face_crop = None
+                        face_detection_source = "none"
+                        if track_id not in face_saved:
+                            local_face_box, local_face_crop, face_detection_source = self._find_face_for_person(
+                                clean_frame, (x1, y1, x2, y2)
+                            )
+                            if local_face_crop is not None:
+                                face_abs_bbox = local_face_box
+                                cv2.rectangle(
+                                    frame,
+                                    (face_abs_bbox[0], face_abs_bbox[1]),
+                                    (face_abs_bbox[2], face_abs_bbox[3]),
+                                    (255, 255, 0),
+                                    2,
+                                )
+                                cv2.putText(
+                                    frame,
+                                    "FACE",
+                                    (face_abs_bbox[0], max(20, face_abs_bbox[1] - 8)),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.5,
+                                    (255, 255, 0),
+                                    2,
+                                )
+
                         if (
                             local_face_crop is not None
                             and self._is_face_crop_plausible(local_face_crop)
@@ -290,6 +344,8 @@ class Model4Service:
 
                         if track_id not in event_saved:
                             event_saved.add(track_id)
+                            if len(events) >= max_inline_events:
+                                continue
                             events.append(
                             {
                                 "track_id": track_id,
@@ -318,30 +374,129 @@ class Model4Service:
         conf_person: float = 0.3,
         conf_theft: float = 0.4,
         frame_stride: int = 2,
+        max_frames: int | None = None,
     ) -> dict[str, Any]:
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
             tmp.write(video_bytes)
             tmp_path = tmp.name
 
-        results = self.person_model.track(
-            source=tmp_path,
-            conf=conf_person,
-            classes=[0],
-            tracker="botsort.yaml",
-            persist=True,
-            stream=True,
-            verbose=False,
-            vid_stride=max(1, int(frame_stride)),
-        )
-
-        output = self._process_tracking_results(results, conf_theft=conf_theft)
-
         try:
-            Path(tmp_path).unlink(missing_ok=True)
-        except OSError:
-            pass
+            results = self.person_model.track(
+                source=tmp_path,
+                conf=conf_person,
+                device=self.device,
+                half=self.use_half,
+                classes=[0],
+                tracker="botsort.yaml",
+                persist=True,
+                stream=True,
+                verbose=False,
+                vid_stride=max(1, int(frame_stride)),
+            )
+            output = self._process_tracking_results(results, conf_theft=conf_theft, max_frames=max_frames)
+        finally:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        self.latest_result = output
 
         return output
+
+    def latest(self) -> dict[str, Any]:
+        if self.latest_result is None:
+            return {
+                "processed_frames": 0,
+                "fps": 0.0,
+                "status_counts": {"NORMAL": 0, "SUSPECT": 0, "THEFT": 0},
+                "events": [],
+            }
+        return self.latest_result
+
+    def latest_job_status(self) -> dict[str, Any]:
+        return self.latest_job
+
+    def _run_job(
+        self,
+        *,
+        job_id: str,
+        video_bytes: bytes,
+        conf_person: float,
+        conf_theft: float,
+        frame_stride: int,
+        max_frames: int | None,
+    ) -> None:
+        self.latest_result = {
+            "processed_frames": 0,
+            "fps": 0.0,
+            "status_counts": {"NORMAL": 0, "SUSPECT": 0, "THEFT": 0},
+            "events": [],
+        }
+        self.latest_job = {
+            "job_id": job_id,
+            "status": "running",
+            "message": "Theft analysis in progress.",
+            "updated_at": int(time.time()),
+        }
+        try:
+            self.analyze_video(
+                video_bytes,
+                conf_person=conf_person,
+                conf_theft=conf_theft,
+                frame_stride=frame_stride,
+                max_frames=max_frames,
+            )
+            self.latest_job = {
+                "job_id": job_id,
+                "status": "completed",
+                "message": "Theft analysis completed.",
+                "updated_at": int(time.time()),
+            }
+        except Exception as exc:
+            self.latest_job = {
+                "job_id": job_id,
+                "status": "failed",
+                "message": f"Theft analysis failed: {exc}",
+                "updated_at": int(time.time()),
+            }
+
+    def submit_video_job(
+        self,
+        video_bytes: bytes,
+        conf_person: float = 0.3,
+        conf_theft: float = 0.4,
+        frame_stride: int = 2,
+        max_frames: int | None = None,
+    ) -> dict[str, str]:
+        if self.latest_job.get("status") == "running":
+            return {
+                "job_id": str(self.latest_job.get("job_id") or ""),
+                "status": "running",
+                "message": "A theft analysis job is already running.",
+            }
+
+        job_id = str(uuid.uuid4())
+        self.latest_job = {
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Theft analysis queued.",
+            "updated_at": int(time.time()),
+        }
+        self.executor.submit(
+            self._run_job,
+            job_id=job_id,
+            video_bytes=video_bytes,
+            conf_person=conf_person,
+            conf_theft=conf_theft,
+            frame_stride=frame_stride,
+            max_frames=max_frames,
+        )
+        return {
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Theft analysis started in background.",
+        }
 
     def analyze_youtube(
         self,
@@ -356,6 +511,8 @@ class Model4Service:
         results = self.person_model.track(
             source=youtube_url.strip(),
             conf=conf_person,
+            device=self.device,
+            half=self.use_half,
             classes=[0],
             tracker="botsort.yaml",
             persist=True,
@@ -366,4 +523,5 @@ class Model4Service:
         return self._process_tracking_results(results, conf_theft=conf_theft, max_frames=max_frames)
 
 
-model4_service = Model4Service()
+theft_surveillance_service = TheftSurveillanceService()
+

@@ -13,11 +13,13 @@ import 'cart_screen.dart';
 class PredictionScreen extends StatefulWidget {
   final List<Product> predictions;
   final String imagePath;
+  final bool catalogFlow;
 
   const PredictionScreen({
     super.key,
     required this.predictions,
     required this.imagePath,
+    this.catalogFlow = false,
   });
 
   @override
@@ -37,7 +39,28 @@ class _PredictionScreenState extends State<PredictionScreen> {
   Future<void> _onConfirm() async {
     final product = selected;
     if (product == null) return;
-    context.read<CartState>().addProduct(product);
+    final sourceAwareProduct = widget.catalogFlow
+        ? Product(
+            name: product.name,
+            brand: product.brand,
+            price: product.price,
+            image: product.image,
+            isCatalogSource: true,
+            confidence: product.confidence,
+            detectorConfidence: product.detectorConfidence,
+          )
+        : product;
+    final addError = context.read<CartState>().addProduct(sourceAwareProduct);
+    if (addError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          content: Text(addError),
+        ),
+      );
+      return;
+    }
     try {
       await _player.play(AssetSource('sounds/add_to_cart.mp3'));
     } catch (_) {
@@ -70,7 +93,10 @@ class _PredictionScreenState extends State<PredictionScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: widget.predictions.isEmpty
-            ? _EmptyPrediction(imagePath: widget.imagePath)
+            ? _EmptyPrediction(
+                imagePath: widget.imagePath,
+                catalogFlow: widget.catalogFlow,
+              )
             : Column(
                 children: [
                   ClipRRect(
@@ -157,7 +183,9 @@ class _PredictionScreenState extends State<PredictionScreen> {
                           onPressed: () {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (_) => const CameraScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => CameraScreen(catalogFlow: widget.catalogFlow),
+                              ),
                             );
                           },
                           icon: const Icon(Icons.close),
@@ -183,7 +211,8 @@ class _PredictionScreenState extends State<PredictionScreen> {
 
 class _EmptyPrediction extends StatelessWidget {
   final String imagePath;
-  const _EmptyPrediction({required this.imagePath});
+  final bool catalogFlow;
+  const _EmptyPrediction({required this.imagePath, required this.catalogFlow});
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +240,7 @@ class _EmptyPrediction extends StatelessWidget {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const CameraScreen()),
+              MaterialPageRoute(builder: (_) => CameraScreen(catalogFlow: catalogFlow)),
             );
           },
           child: const Text('Back to Camera'),

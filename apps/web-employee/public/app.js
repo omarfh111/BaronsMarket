@@ -4,6 +4,8 @@ const appLoader = document.getElementById("appLoader");
 const flash = document.getElementById("flash");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const loadingText = document.getElementById("loadingText");
+let activeTab = "Analytics";
+let theftAnalysisActive = false;
 
 window.addEventListener("load", () => {
   setTimeout(() => {
@@ -28,6 +30,7 @@ function setLoading(active, text = "Analyse en cours...") {
 }
 
 function setTab(tabId) {
+  activeTab = tabId;
   const tabs = ["Analytics", "Animal", "Theft", "Queue", "Docs", "Access"];
   tabs.forEach((name) => {
     document.getElementById(`tab${name}`)?.classList.remove("active");
@@ -270,6 +273,48 @@ function renderTheftResult(data) {
   `).join("");
 }
 
+function renderTheftJobStatus(job) {
+  theftSummary.innerHTML = `
+    <p><strong>Job status:</strong> ${job.status}</p>
+    <p><strong>Job ID:</strong> ${job.job_id || "-"}</p>
+    <p><strong>Message:</strong> ${job.message || "-"}</p>
+  `;
+  theftSummary.classList.remove("hidden");
+}
+
+async function refreshTheftJobStatus(silent = true) {
+  try {
+    const res = await fetch(`${apiBase}/theft/job-latest`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Erreur status job theft");
+    renderTheftJobStatus(data);
+    return data;
+  } catch (err) {
+    if (!silent) notify(err.message);
+    return null;
+  }
+}
+
+async function waitForTheftJob() {
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const job = await refreshTheftJobStatus(true);
+    if (!job) continue;
+    if (job.status === "completed") {
+      const res = await fetch(`${apiBase}/theft/latest`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Erreur chargement resultat theft");
+      renderTheftResult(data);
+      await loadTheftFaces();
+      notify("Analyse vol terminee.");
+      return;
+    }
+    if (job.status === "failed") {
+      throw new Error(job.message || "Analyse vol echouee.");
+    }
+  }
+}
+
 theftVideoForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   clearTheftResults();
@@ -281,19 +326,23 @@ theftVideoForm.addEventListener("submit", async (e) => {
   fd.append("video", theftVideoInput.files[0]);
 
   try {
+    theftAnalysisActive = true;
     const submitBtn = theftVideoForm.querySelector("button[type='submit']");
     submitBtn.disabled = true;
-    submitBtn.textContent = "Surveillance en cours...";
-    setLoading(true, "Surveillance vol en cours...");
-    const url = `${apiBase}/theft/analyze-video?conf_person=${confPerson}&conf_theft=${confTheft}&frame_stride=${frameStride}`;
+    submitBtn.textContent = "Surveillance lancee...";
+    setLoading(true, "Upload video et lancement surveillance...");
+    const url = `${apiBase}/theft/submit-video?conf_person=${confPerson}&conf_theft=${confTheft}&frame_stride=${frameStride}`;
     const res = await fetch(url, { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Erreur surveillance");
-    renderTheftResult(data);
-    await loadTheftFaces();
+    renderTheftJobStatus(data);
+    setLoading(true, "Surveillance vol en arriere-plan...");
+    notify("Job theft lance en arriere-plan. Le resultat va s'afficher automatiquement.");
+    await waitForTheftJob();
   } catch (err) {
     notify(err.message);
   } finally {
+    theftAnalysisActive = false;
     const submitBtn = theftVideoForm.querySelector("button[type='submit']");
     submitBtn.disabled = false;
     submitBtn.textContent = "Lancer surveillance";
@@ -344,6 +393,9 @@ const queueMinValidCountInput = document.getElementById("queueMinValidCount");
 const queueSummary = document.getElementById("queueSummary");
 const queueJobStatus = document.getElementById("queueJobStatus");
 const queueRefreshBtn = document.getElementById("queueRefreshBtn");
+let queueLatestInFlight = false;
+let queueJobInFlight = false;
+let queueLastJobStatus = "idle";
 
 function renderQueueSummary(data) {
   const queueCounts = data.queue_counts || {};
@@ -365,17 +417,24 @@ function renderQueueSummary(data) {
 }
 
 async function refreshQueueLatest(silent = false) {
+  if (queueLatestInFlight) return null;
+  queueLatestInFlight = true;
   try {
     const res = await fetch(`${apiBase}/queue-recommendation/latest`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Erreur latest queue");
     renderQueueSummary(data);
+    return data;
   } catch (err) {
     if (!silent) notify(err.message);
+    return null;
+  } finally {
+    queueLatestInFlight = false;
   }
 }
 
 function renderQueueJobStatus(job) {
+  queueLastJobStatus = job.status || "idle";
   queueJobStatus.innerHTML = `
     <p><strong>Job status:</strong> ${job.status}</p>
     <p><strong>Job ID:</strong> ${job.job_id || "-"}</p>
@@ -385,13 +444,19 @@ function renderQueueJobStatus(job) {
 }
 
 async function refreshQueueJobStatus(silent = true) {
+  if (queueJobInFlight) return null;
+  queueJobInFlight = true;
   try {
     const res = await fetch(`${apiBase}/queue-recommendation/job-latest`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Erreur status job queue");
     renderQueueJobStatus(data);
+    return data;
   } catch (err) {
     if (!silent) notify(err.message);
+    return null;
+  } finally {
+    queueJobInFlight = false;
   }
 }
 
@@ -435,11 +500,21 @@ queueRefreshBtn.addEventListener("click", async () => {
   await refreshQueueLatest(false);
 });
 
-// Poll latest recommendation every second for near real-time queue display.
-setInterval(() => {
-  refreshQueueJobStatus(true);
-  refreshQueueLatest(true);
-}, 1000);
+function queuePollDelayMs() {
+  if (document.hidden) return 8000;
+  if (queueLastJobStatus === "running" || queueLastJobStatus === "queued") return 1200;
+  if (activeTab === "Queue") return 1500;
+  if (theftAnalysisActive) return 5000;
+  return 4000;
+}
+
+async function runQueuePollLoop() {
+  await refreshQueueJobStatus(true);
+  await refreshQueueLatest(true);
+  setTimeout(runQueuePollLoop, queuePollDelayMs());
+}
+
+runQueuePollLoop();
 
 // --- Forged docs functionality ---
 const docsForm = document.getElementById("docsForm");
