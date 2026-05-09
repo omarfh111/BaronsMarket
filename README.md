@@ -11,7 +11,7 @@
 
 ## Overview
 
-BaronsMarket AI Platform is an academic smart-retail project developed as part of engineering coursework at **Esprit School of Engineering**. The project explores how artificial intelligence can support a supermarket environment through customer assistance, employee decision support, computer vision monitoring, semantic product search, and business analytics.
+BaronsMarket AI Platform is an academic smart-retail project developed as part of the **PIDEV / integrated engineering coursework at Esprit School of Engineering**. The project explores how artificial intelligence can support a supermarket environment through customer assistance, employee decision support, computer vision monitoring, semantic product search, and business analytics.
 
 The goal is not to replace staff. The system is designed as an ethical AI decision-support tool that helps customers shop faster and helps employees monitor queues, freshness, access control, and operational signals with better visibility.
 
@@ -24,7 +24,8 @@ In three short points, the system provides:
 ## Academic Context
 
 - Institution: **Esprit School of Engineering**
-- Context: university engineering project / integrated coursework in AI, software engineering, and smart retail systems
+- Course/university context: this project was developed as part of the coursework for **PIDEV / integrated engineering project at Esprit School of Engineering**
+- Context: university engineering project in AI, software engineering, computer vision, mobile development, and smart retail systems
 - Project theme: AI-assisted supermarket operations and customer experience
 - Main objective: demonstrate a complete full-stack AI platform combining mobile, web, backend APIs, computer vision, RAG, vector search, and analytics
 
@@ -37,6 +38,8 @@ Recommended GitHub repository topics:
 If topics are not visible on the GitHub repository page, add them from:
 
 `Repository page -> About -> Settings gear -> Topics`
+
+This section is intentionally separate from normal README keywords because GitHub Topics must also be configured on the repository page for evaluation visibility.
 
 ## Hosting And Deployment
 
@@ -81,6 +84,22 @@ Expected on GPU server:
 10. Multi-agent RAG shopping assistant using product catalog context and Qdrant retrieval.
 11. Store analytics dashboard with trends, top products, stock risk, and agent insights.
 12. CUDA-aware model runtime for GPU acceleration.
+
+## Model Descriptions
+
+| Model / Service | Service file | Main role | Output |
+| --- | --- | --- | --- |
+| Product Retrieval | `backend/app/services/product_retrieval_service.py` | Detects products in an image with YOLO, builds CLIP embeddings, and retrieves the closest catalog products with FAISS. | Product name, brand, price, image, detector confidence, retrieval confidence. |
+| Meat Freshness | `backend/app/services/meat_freshness_service.py` | Classifies meat freshness from an uploaded image. | Freshness label and class probabilities. |
+| Animal & Bag Monitoring | `backend/app/services/animal_bag_service.py` | Detects animal/bag events from image or video input and extracts event snapshots. | Label, confidence, bounding box, timestamped events. |
+| Theft Surveillance | `backend/app/services/theft_surveillance_service.py` | Tracks people in video, analyzes person crops, and classifies behavior states. CUDA batching is used when available. | `NORMAL`, `SUSPECT`, `THEFT`, event captures, suspect face artifacts. |
+| Queue Recommendation | `backend/app/services/queue_recommendation_service.py` | Counts people in configured checkout zones and recommends the best queue. | Queue counts, best queue, async job status, output video path. |
+| Vegetable Freshness | `backend/app/services/vegetable_freshness_service.py` | Classifies vegetable/produce freshness with a MobileNet-based PyTorch model. | Healthy/rotten label and probabilities. |
+| Fidelity Card Verification | `backend/app/services/fidelity_card_service.py` | Validates customer loyalty card using CNN classification, OCR, expiry/status checks, and local database lookup. | Validity, discount, card ID, customer name, OCR pass. |
+| Forged Document Detection | `backend/app/services/forged_docs_service.py` | Detects potential forged document regions and generates visual evidence. | Authentic/forged decision, score, mask, heatmap, original preview. |
+| Employee Access | `backend/app/services/employee_access_service.py` | Combines liveness check, badge text verification, face registration, and face matching. | Access decision, employee identity, liveness result, face match score. |
+| Multi-Agent RAG Assistant | `backend/app/services/assistant_service.py` | Routes user messages to specialized agents and retrieves real products from catalog/Qdrant context. | Detailed answer, steps, active agent, product cards from catalog. |
+| Store Analytics | `backend/app/services/store_analytics_service.py` | Builds BI-style operational insights from checkout and product data. | Trends, top products, stock risk, recommendation insights. |
 
 ## AI Assistant And RAG
 
@@ -155,6 +174,16 @@ Recommended visuals for evaluation:
 - Forgery detection mask/heatmap
 - Store analytics dashboard
 - Assistant recipe/product basket response
+
+Screenshot gallery placeholders are already included. Replace these files with real screenshots before final submission:
+
+| Mobile | Employee / AI |
+| --- | --- |
+| ![Mobile home](docs/screenshots/mobile-home.svg) | ![Employee dashboard](docs/screenshots/employee-dashboard.svg) |
+| ![Product scan](docs/screenshots/mobile-product-scan.svg) | ![Queue recommendation](docs/screenshots/queue-recommendation.svg) |
+| ![Cart checkout](docs/screenshots/mobile-cart-checkout.svg) | ![Theft surveillance](docs/screenshots/theft-surveillance.svg) |
+| ![Assistant recipe basket](docs/screenshots/assistant-recipe-basket.svg) | ![Analytics dashboard](docs/screenshots/analytics-dashboard.svg) |
+|  | ![Forgery detection](docs/screenshots/forgery-detection.svg) |
 
 If a stable live demo URL is available, add it here:
 
@@ -282,14 +311,18 @@ Main variables:
 - `MODEL8_*` for forged document detection
 - `MODEL9_*` for employee access verification
 
-## Ethical AI And Sustainability
+## Ethical AI And Sustainable Development Goals
 
-This project supports ethical AI use by assisting humans instead of replacing them. It helps employees detect operational issues, supports safer access control, improves queue visibility, and gives customers clearer product guidance.
+This project supports ethical AI use by assisting humans instead of replacing them. It does not eliminate the work of cashiers, employees, security staff, or managers; it gives them extra information, faster alerts, and better decision support. Final decisions remain human-centered: employees can verify recommendations, reject false alerts, and use the system as a tool rather than as an autonomous replacement.
 
-Relevant UN Sustainable Development Goals:
+Relevant UN Sustainable Development Goals (ODD):
 
+- SDG 3: Good Health and Well-being, through freshness checks and safer food-quality awareness.
+- SDG 4: Quality Education, through an academic engineering project that applies AI, software engineering, and responsible innovation.
 - SDG 8: Decent Work and Economic Growth, through decision-support tools for retail operations.
 - SDG 9: Industry, Innovation and Infrastructure, through AI and software engineering integration.
+- SDG 10: Reduced Inequalities, through an assistant that can simplify access to product information and shopping guidance.
+- SDG 11: Sustainable Cities and Communities, through smarter local retail services and safer store operations.
 - SDG 12: Responsible Consumption and Production, through freshness checks, product awareness, and analytics.
 
 ## Troubleshooting
