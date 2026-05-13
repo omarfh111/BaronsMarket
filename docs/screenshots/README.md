@@ -1,29 +1,17 @@
-﻿# Screenshots For Evaluation
+# Screenshots For Evaluation
 
-Place final demo screenshots in this folder before the academic submission. The repository already contains lightweight SVG placeholders so the root README has a visible screenshot section. Replace those placeholders with real screenshots from your running application when the final demo is ready.
+This folder contains real demo screenshots captured from the BaronsMarket AI Platform. The root README links these files directly so evaluators can verify the implemented mobile app, employee dashboard, video analytics, assistant, checkout, and AI services.
 
-Current placeholder files:
+Final screenshot files:
 
-- `mobile-home.svg`
-- `mobile-product-scan.svg`
-- `mobile-cart-checkout.svg`
-- `employee-dashboard.svg`
-- `queue-recommendation.svg`
-- `theft-surveillance.svg`
-- `forgery-detection.svg`
-- `analytics-dashboard.svg`
-- `assistant-recipe-basket.svg`
+- `mobile-home.jpg` - Flutter customer app entry point.
+- `mobile-product-scan.jpg` - Mobile product recognition result using the AI prediction flow.
+- `mobile-cart-checkout.jpg` - Checkout QR and final basket flow.
+- `employee-dashboard.png` - Employee AI command dashboard and store metrics.
+- `queue-recommendation.png` - Queue recommendation video analysis result.
+- `theft-surveillance.png` - Theft surveillance event analysis result.
+- `assistant-recipe-basket.jpg` - Assistant recommendation response for a recipe/product basket.
+- `analytics-dashboard.png` - Store analytics dashboard visualization.
+- `forgery-detection.png` - Document forgery detection result.
 
-Recommended final real screenshots:
-
-- Mobile home screen
-- Mobile product scan result
-- Mobile cart and checkout QR
-- Employee dashboard home
-- Queue recommendation result
-- Theft surveillance event capture
-- Forgery detection mask/heatmap
-- Store analytics dashboard
-- Assistant recipe ingredient basket
-
-The root README links these files so evaluators know exactly where visuals and demo evidence should live.
+Keep future screenshots in this folder with stable, descriptive filenames so README links remain valid.

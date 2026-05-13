@@ -126,7 +126,7 @@ Recommended production target:
 ## 9. Documentation Checklist Before Final Submission
 
 - Add final live demo URL if available.
-- Add real screenshots under `docs/screenshots/`.
+- Review the real demo screenshots under `docs/screenshots/`.
 - Add GitHub topics listed in `README.md` from the repository About panel.
 - Verify `.env.example` does not contain secrets.
 - Verify `GET /models/device` shows expected GPU status on the deployment machine.

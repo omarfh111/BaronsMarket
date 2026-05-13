@@ -162,7 +162,7 @@ flowchart LR
 
 ## Screenshots And Demo Assets
 
-Suggested demo screenshots are documented in `docs/screenshots/README.md`.
+Real demo screenshots are available in `docs/screenshots/` and document the implemented mobile app, employee dashboard, video analytics, assistant, checkout, and AI services.
 
 Recommended visuals for evaluation:
 
@@ -175,15 +175,13 @@ Recommended visuals for evaluation:
 - Store analytics dashboard
 - Assistant recipe/product basket response
 
-Screenshot gallery placeholders are already included. Replace these files with real screenshots before final submission:
-
 | Mobile | Employee / AI |
 | --- | --- |
-| ![Mobile home](docs/screenshots/mobile-home.svg) | ![Employee dashboard](docs/screenshots/employee-dashboard.svg) |
-| ![Product scan](docs/screenshots/mobile-product-scan.svg) | ![Queue recommendation](docs/screenshots/queue-recommendation.svg) |
-| ![Cart checkout](docs/screenshots/mobile-cart-checkout.svg) | ![Theft surveillance](docs/screenshots/theft-surveillance.svg) |
-| ![Assistant recipe basket](docs/screenshots/assistant-recipe-basket.svg) | ![Analytics dashboard](docs/screenshots/analytics-dashboard.svg) |
-|  | ![Forgery detection](docs/screenshots/forgery-detection.svg) |
+| ![Mobile home](docs/screenshots/mobile-home.jpg) | ![Employee dashboard](docs/screenshots/employee-dashboard.png) |
+| ![Product scan](docs/screenshots/mobile-product-scan.jpg) | ![Queue recommendation](docs/screenshots/queue-recommendation.png) |
+| ![Cart checkout](docs/screenshots/mobile-cart-checkout.jpg) | ![Theft surveillance](docs/screenshots/theft-surveillance.png) |
+| ![Assistant recipe basket](docs/screenshots/assistant-recipe-basket.jpg) | ![Analytics dashboard](docs/screenshots/analytics-dashboard.png) |
+|  | ![Forgery detection](docs/screenshots/forgery-detection.png) |
 
 If a stable live demo URL is available, add it here:
 
